@@ -39,4 +39,35 @@ def cron():
 	
 
 class AutoShiftAssignment(Document):
-	pass
+	@frappe.whitelist()
+	def auto_save_assignment(self):
+		# today = date.today()
+		# print("Today's date:", today)
+
+		# data = frappe.db.get_list("Auto Shift Assignment", fields=["name", "start_date", "end_date", "status", "employee_group", "company", "shift_type"], filters={"status": 'Active', "start_date": str(today)})
+		# frappe.msgprint(str(data ))
+		# for eg in data:
+		emp = frappe.db.get_list("Employee", fields=["name", "employee_group", "employee_name"], filters={"employee_group": str(self.employee_group)})
+		
+		for e in emp:
+			# Retrieve Shift Assignment records for the given employee
+			sa = frappe.db.get_list('Shift Assignment', fields=["name", "start_date", "end_date", "status", "employee", "company", "shift_type"], filters={"employee": e.name})
+
+			employee_assigned = False
+			for k in sa:
+				if e.employee_name == k.employee:
+					frappe.db.set_value("Shift Assignment", k.name, "shift_type", self.shift_type)
+					frappe.db.set_value("Shift Assignment", k.name, "start_date", self.start_date)
+					frappe.db.set_value("Shift Assignment", k.name, "end_date", self.end_date)
+					employee_assigned = True
+					break
+			
+			if not employee_assigned:
+				new_doc = frappe.new_doc('Shift Assignment')
+				new_doc.employee = e.employee_name
+				new_doc.employee_name = e.employee_name
+				new_doc.shift_type = self.shift_type
+				new_doc.start_date = self.start_date
+				new_doc.end_date = self.end_date
+				new_doc.docstatus = 1
+				new_doc.insert(ignore_permissions=True)
